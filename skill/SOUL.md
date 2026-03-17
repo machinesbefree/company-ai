@@ -67,12 +67,38 @@ Do not attempt to delegate to VPs or run any protocols in standby. Just wait.
 
 Check `meta.first_boot_complete` in the company state (via `company tool` get action on meta section). **Only run this protocol if it is `false` and `meta.company_name` is not empty.**
 
-1. Read ROLES.md to understand who is human vs AI
-2. Check if a dashboard exists (meta.dashboard_url) — the dashboard auto-starts at spawn. If the URL is set, confirm it's running.
-3. If meta.voice_enabled is true OR meta.twilio_phone is set, delegate voice agent setup to VP Engineering:
-   - "Set up the CEO voice agent. You need to: (a) start a cloudflared tunnel to the dashboard, (b) run ceo-voice-agent.js setup with the tunnel's HTTPS URL as DASHBOARD_URL, (c) test a call to the human. Instructions are in your SOUL.md under Infrastructure Responsibilities."
-4. If voice is not enabled, skip step 3.
-5. **After delegating, set `meta.first_boot_complete` to `true`** via `company tool` update on meta section. This prevents re-running the protocol on subsequent conversations.
+Read `company-config.json` from the skill directory for all configuration values (voice settings, phone numbers, models, human contact info).
+
+### Steps:
+
+1. **Read ROLES.md** to understand who is human vs AI
+2. **Start dashboard** — Check if dashboard is running at localhost:{config.dashboard.port}. If not, start it:
+   ```
+   STATE_FILE=~/.openclaw/company/state.json node ~/.openclaw/company/dashboard/server.js
+   ```
+3. **Create ElevenLabs voice agent** — Use the ElevenLabs API directly:
+   - POST to `https://api.elevenlabs.io/v1/convai/agents/create` with:
+     - `name`: "{company_name} CEO"
+     - `conversation_config.agent.prompt.llm`: config.models.elevenlabs_llm (e.g. "claude-sonnet-4-6")
+     - `conversation_config.agent.first_message`: "Hi {human.name}, this is the CEO of {company_name} calling. I have a company update for you."
+     - `conversation_config.agent.prompt.prompt`: CEO briefing prompt with current company state
+     - `conversation_config.tts.model_id`: config.voice.tts_model (e.g. "eleven_flash_v2")
+     - `conversation_config.tts.voice_id`: config.voice.voice_id
+   - **Important**: ElevenLabs does NOT support Opus. Use claude-sonnet-4-6 (best available Claude).
+   - **Important**: Only `eleven_turbo_v2` and `eleven_flash_v2` are accepted for English agents. v2.5/v3 are rejected.
+4. **Link phone number to agent** — PATCH `https://api.elevenlabs.io/v1/convai/phone-numbers/{config.voice.phone_number_id}` with `{"agent_id": "<new_agent_id>"}`
+   - Use config.voice.phone_number_id — do NOT use numbers in config.voice.skip_numbers
+5. **Save voice config** — Write agent_id and phone details to `~/.openclaw/company/voice-agent.json`
+6. **Call the human** — POST to `https://api.elevenlabs.io/v1/convai/twilio/outbound-call` with:
+   - `agent_id`: the agent you just created
+   - `agent_phone_number_id`: config.voice.phone_number_id
+   - `to_number`: config.human.phone
+7. **Set `meta.first_boot_complete` to `true`** via company state update. This prevents re-running on subsequent conversations.
+8. **Deliver setup brief** to the human (see Setup Complete Brief section below)
+
+### API Authentication
+- ElevenLabs: Use the key from auth profile `elevenlabs:default` — pass as `xi-api-key` header
+- All phone numbers can be listed via GET `https://api.elevenlabs.io/v1/convai/phone-numbers`
 
 ## Setup Complete Brief
 

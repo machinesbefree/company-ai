@@ -1,0 +1,42 @@
+{
+  "voice": {
+    "elevenlabs_api_key_profile": "elevenlabs:default",
+    "agent_id": null,
+    "phone_number_id": "phnum_0101kkxk99fzereagnsdkhwa5nvq",
+    "phone_number": "+17097006222",
+    "phone_label": "CEO",
+    "human_phone": "+17097656995",
+    "voice_id": "wtEw2VyjQ8HJw7eOBFWm",
+    "tts_model": "eleven_flash_v2",
+    "llm": "claude-sonnet-4-6",
+    "skip_numbers": [
+      "+17093991229"
+    ],
+    "skip_numbers_notes": "Skippy's number - do not use"
+  },
+  "dashboard": {
+    "port": 3141
+  },
+  "models": {
+    "ceo": "anthropic/claude-opus-4-6",
+    "vp": "anthropic/claude-sonnet-4-6",
+    "elevenlabs_llm": "claude-sonnet-4-6",
+    "elevenlabs_llm_note": "ElevenLabs does not support Opus - Sonnet 4.6 is the best Claude available"
+  },
+  "telegram": {
+    "chat_id": "1974920811"
+  },
+  "human": {
+    "name": "Will",
+    "phone": "+17097656995",
+    "telegram_id": "1974920811"
+  },
+  "setup_notes": {
+    "bash_version": "macOS default bash (3.2) does not support declare -A. Use /usr/local/bin/bash (5.x) installed via brew.",
+    "elevenlabs_agent_creation": "POST to /v1/convai/agents/create (not /v1/convai/agents)",
+    "elevenlabs_tts_models": "English agents only accept 'eleven_turbo_v2' or 'eleven_flash_v2'. v2.5 and v3 are rejected.",
+    "elevenlabs_llm_models": "No Opus available. Best Claude is claude-sonnet-4-6. Full list includes gpt-5.x, gemini-3.x, claude-sonnet-4-6.",
+    "phone_numbers": "List via GET /v1/convai/phone-numbers. Link to agent via PATCH /v1/convai/phone-numbers/{id} with {agent_id: ...}",
+    "outbound_calls": "POST /v1/convai/twilio/outbound-call with agent_id, agent_phone_number_id, to_number"
+  }
+}
