@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Company Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 2rem; }
+  h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1.25rem; }
+  .card h2 { font-size: 1rem; color: #888; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .field { margin-bottom: 0.5rem; }
+  .field .label { color: #666; font-size: 0.8rem; }
+  .field .value { color: #e0e0e0; font-size: 0.95rem; }
+  .attention { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+  .attention-none { background: #1a2a1a; color: #4ade80; }
+  .attention-low { background: #1a2a2a; color: #67e8f9; }
+  .attention-medium { background: #2a2a1a; color: #fbbf24; }
+  .attention-high { background: #2a1a1a; color: #f87171; }
+  .attention-urgent { background: #3a0a0a; color: #ff4444; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.7; } }
+  .decisions { margin-top: 1rem; }
+  .decision { background: #111; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; }
+  .decision .status { font-weight: 600; }
+  .status-pending { color: #fbbf24; }
+  .status-approved { color: #4ade80; }
+  .status-rejected { color: #f87171; }
+  .meta-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: #111; border-radius: 6px; font-size: 0.85rem; color: #888; }
+  .meta-bar .name { color: #fff; font-weight: 600; }
+  #error { color: #f87171; padding: 1rem; display: none; }
+  #loading { color: #888; padding: 2rem; text-align: center; }
+</style>
+</head>
+<body>
+<div id="loading">Loading company state...</div>
+<div id="error"></div>
+<div id="app" style="display:none">
+  <div class="meta-bar">
+    <span class="name" id="company-name"></span>
+    <span id="company-domain"></span>
+    <span>Spawned: <span id="spawned-at"></span></span>
+  </div>
+  <h1>Company Dashboard</h1>
+  <div class="grid" id="sections"></div>
+  <div class="decisions" id="decisions-container" style="display:none">
+    <h2 style="margin: 1.5rem 0 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em;">Pending Decisions</h2>
+    <div id="decisions-list"></div>
+  </div>
+</div>
+
+<script>
+// Configure this URL to point to your company.api gateway endpoint
+const API_URL = window.COMPANY_API_URL || '/api/gateway/company.api';
+
+const SECTION_ORDER = ['ceo', 'finance', 'operations', 'strategy', 'personnel', 'risks', 'queue'];
+const SECTION_HEADERS = {
+  ceo: 'CEO Focus', finance: 'Finance', operations: 'Operations',
+  strategy: 'Strategy', personnel: 'Personnel', risks: 'Risks', queue: 'Decision Queue'
+};
+
+// Fields to skip in display (managed separately or internal)
+const SKIP_FIELDS = new Set(['decisions', 'report_file']);
+
+function attentionClass(level) {
+  const l = (level || 'none').toLowerCase();
+  return `attention attention-${l}`;
+}
+
+function formatValue(val) {
+  if (val === null || val === undefined) return '—';
+  if (Array.isArray(val)) return val.length ? val.join(', ') : 'none';
+  return String(val);
+}
+
+function renderSection(name, data) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const header = SECTION_HEADERS[name] || name;
+  let headerHtml = `<h2>${header}`;
+  if (data.attention && data.attention !== 'none') {
+    headerHtml += ` <span class="${attentionClass(data.attention)}">${data.attention}</span>`;
+  }
+  headerHtml += '</h2>';
+  card.innerHTML = headerHtml;
+
+  for (const [key, val] of Object.entries(data)) {
+    if (SKIP_FIELDS.has(key)) continue;
+    if (key === 'attention') continue;
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.innerHTML = `<span class="label">${key.replace(/_/g, ' ')}</span>: <span class="value">${formatValue(val)}</span>`;
+    card.appendChild(field);
+  }
+  return card;
+}
+
+function renderDecisions(decisions) {
+  const container = document.getElementById('decisions-container');
+  const list = document.getElementById('decisions-list');
+  const pending = decisions.filter(d => d.status === 'pending');
+  if (pending.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  list.innerHTML = '';
+  for (const d of pending) {
+    const el = document.createElement('div');
+    el.className = 'decision';
+    el.innerHTML = `
+      <div><strong>${d.summary}</strong></div>
+      <div>From: ${d.source} | <span class="status status-${d.status}">${d.status}</span>
+      ${d.requires_human ? ' | ⚠️ Requires human' : ''}</div>
+    `;
+    list.appendChild(el);
+  }
+}
+
+async function fetchState() {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get' })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'API error');
+    return json.payload;
+  } catch (e) {
+    document.getElementById('error').textContent = `Failed to load: ${e.message}`;
+    document.getElementById('error').style.display = 'block';
+    throw e;
+  }
+}
+
+async function render() {
+  const state = await fetchState();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  // Meta bar
+  if (state.meta) {
+    document.getElementById('company-name').textContent = state.meta.company_name || 'Company';
+    document.getElementById('company-domain').textContent = state.meta.domain || '';
+    document.getElementById('spawned-at').textContent = state.meta.spawned_at || '—';
+  }
+
+  // Sections
+  const grid = document.getElementById('sections');
+  grid.innerHTML = '';
+  for (const name of SECTION_ORDER) {
+    if (state[name]) grid.appendChild(renderSection(name, state[name]));
+  }
+
+  // Decisions
+  if (state.queue?.decisions) renderDecisions(state.queue.decisions);
+}
+
+render();
+setInterval(render, 30000); // refresh every 30s
+</script>
+</body>
+</html>

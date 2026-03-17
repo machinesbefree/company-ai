@@ -1,0 +1,20 @@
+{
+  "name": "@openclaw/company",
+  "version": "1.0.0",
+  "description": "Corporate state machine — executive dashboard for AI CEO and sub-agents.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  }
+}

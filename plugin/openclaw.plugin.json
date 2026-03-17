@@ -1,0 +1,82 @@
+{
+  "id": "company",
+  "name": "Company Dashboard",
+  "description": "Corporate state machine — executive dashboard for AI CEO and sub-agents. CEO focus, VP reports with attention levels, finance, operations, strategy, personnel, risks, decision queue, company meta.",
+  "version": "4.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "stateDir": {
+        "type": "string",
+        "description": "Directory for the persistent company state file.",
+        "default": "~/.openclaw/company/"
+      },
+      "agents": {
+        "type": "object",
+        "description": "Per-agent injection configuration.",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "inject": {
+              "type": "array",
+              "description": "Dashboard sections to prepend for this agent.",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "ceo",
+                  "finance",
+                  "operations",
+                  "strategy",
+                  "personnel",
+                  "risks",
+                  "queue",
+                  "meta"
+                ]
+              },
+              "default": [
+                "ceo",
+                "finance",
+                "operations",
+                "strategy",
+                "personnel",
+                "risks",
+                "queue"
+              ]
+            }
+          }
+        }
+      },
+      "telegram": {
+        "type": "object",
+        "description": "Telegram bot configuration for decision inline keyboards.",
+        "additionalProperties": false,
+        "properties": {
+          "botToken": {
+            "type": "string",
+            "description": "Telegram Bot API token."
+          },
+          "humanChatId": {
+            "type": "string",
+            "description": "Telegram chat ID for the human founder/owner. Callbacks from other users are rejected."
+          },
+          "secretToken": {
+            "type": "string",
+            "description": "Secret token for Telegram webhook verification (X-Telegram-Bot-Api-Secret-Token header)."
+          }
+        }
+      }
+    }
+  },
+  "uiHints": {
+    "stateDir": {
+      "label": "State Directory",
+      "placeholder": "~/.openclaw/company/"
+    }
+  }
+}
